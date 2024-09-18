@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三龙牌发牌器</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            text-align: center;
+            width: 350px;
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        h1 {
+            margin-bottom: 20px;
+            font-size: 2em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        button {
+            font-size: 16px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        #drawButton {
+            background-color: #4CAF50;
+            color: white;
+        }
+        #resetButton {
+            background-color: #f44336;
+            color: white;
+        }
+        #historyButton {
+            background-color: #2196F3;
+            color: white;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        #cardDisplay {
+            font-size: 16px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            height: 200px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            word-wrap: break-word;
+        }
+        .card-animation {
+            animation: cardPull 0.5s ease-out;
+        }
+        @keyframes cardPull {
+            0% { transform: translateY(50px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        #historyDisplay {
+            font-size: 14px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            height: 150px;
+            overflow-y: auto;
+            margin-top: 20px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>三龙牌发牌器</h1>
+        <div class="button-container">
+            <button id="drawButton">抽牌</button>
+            <button id="resetButton">重置</button>
+            <button id="historyButton">显示/隐藏历史</button>
+        </div>
+        <div id="cardDisplay"></div>
+        <div id="historyDisplay" style="display: none;"></div>
+    </div>
+
+    <script>
+        const standardDragons = {
+            "黑龙": [1, 2, 3, 5, 6, 7, 9],
+            "蓝龙": [1, 2, 4, 6, 7, 9, 11],
+            "黄铜龙": [1, 2, 3, 4, 5, 7, 9],
+            "青铜龙": [1, 3, 6, 7, 8, 9, 11],
+            "赤铜龙": [1, 3, 5, 6, 7, 8, 10],
+            "金龙": [2, 4, 6, 8, 9, 11, 13],
+            "绿龙": [1, 2, 4, 5, 6, 8, 10],
+            "红龙": [2, 3, 5, 7, 8, 10, 12],
+            "银龙": [2, 3, 6, 7, 8, 10, 12],
+            "白龙": [1, 2, 3, 4, 5, 6, 8]
+        };
+
+        const specialCards = {
+            "巴哈姆特": 13, "劫掠黑龙": 8, "蓝龙领主": 10, "黄铜锦龙": 8, "青铜战龙": 10,
+            "五彩幼龙": 1, "诡剧铜龙": 9, "亡灵龙妖": 10, "金龙君主": 12, "阴谋绿龙": 5,
+            "金属幼龙": 1, "毁灭红龙": 11, "银龙先知": 11, "提亚玛特": 13, "白龙猎手": 7,
+            "大法师": 9, "龙骑士": 6, "屠龙者": 8, "德鲁伊": 6, "愚者": 3,
+            "幻术师": 4, "狗头人": 2, "商人王": 5, "神父": 5, "公主": 4,
+            "预言家": 10, "女帝": 7, "巫师": 8, "盗贼": 7, "龙祭司": 5
+        };
+
+        const cardAbilities = {
+            "黑龙": "从赌池中拿走3金币。如果赌池中剩下3个或更少的金币，拿走你能拿到的，然后因为赌池为空而结束赌局。",
+            "蓝龙": "选择一项：每个对手给你1个金币；或者每个对手为你飞行队列中的每张牌增加1个金币到赌池中。",
+            "黄铜龙": "最强飞行队列的对手，选择要么从他或她的手中给你一条更强大的善龙，要么付给你5金币。",
+            "青铜龙": "拿走下注牌中最弱的两张牌。",
+            "赤铜龙": "丢弃这张牌，抽取牌组最上面的牌加入你的飞行队列。被抽取的牌的能力无论其强度如何都会触发。",
+            "金龙": "从牌组中抽取数目等同于你当前飞行队列中善龙数量的牌。",
+            "绿龙": "你左边的对手选择要么从他的手牌中给你一只更弱的恶龙，要么支付给你5金币。",
+            "红龙": "最强飞行队列的对手给你1金币。并从那个玩家的手牌中盲抽一张牌。",
+            "银龙": "每个飞行队列中有至少一只善龙的玩家抽一张牌。",
+            "白龙": "最弱飞行队列的对手给你2金币。",
+            "巴哈姆特": "龙神：只要你的飞行队列中有巴哈姆特和一只恶龙，你就不能赢得赌局。能力：每个飞行队列中同时有善龙和恶龙的其他玩家给你10金币。",
+            "劫掠黑龙": "从赌池中拿走1金币，然后从你左边的对手那里拿走2金币，从他左边的对手那里拿走3金币，依此类推，直到你从每个人那里都拿到了金币。",
+            "蓝龙领主": "选择一项：每个对手给你2金币；或者每个对手为你飞行队列中的每张牌增加2金币到赌池中。",
+            "黄铜锦龙": "你左边和右边的对手各自选择要么从他们的手牌中给你一只更强的善龙，要么给你5金币。",
+            "青铜战龙": "拿走下注牌中最弱的两张牌。然后如果你在第三回合结束时没有赢得赌局，增加第四回合。",
+            "五彩幼龙": "你可以选择弃掉这张牌，并用你手中的一只恶龙牌替换它。新牌的能力会触发，无论其强度如何。",
+            "诡剧铜龙": "弃掉你飞行队列中的另一张牌，并用牌堆顶部的牌替换它。如果你愿意，可以触发新牌的能力。",
+            "亡灵龙妖": "在确定赌局胜者时，你的飞行队列中每有一只恶龙，你的飞行队列强度+2。",
+            "金龙君主": "你的飞行队列中每有一只善龙就抽一张牌。然后如果你赢得了这轮赌局，给每个对手3金币作为礼物。",
+            "阴谋绿龙": "你左边和右边的对手各自选择要么从他们的手牌中给你一只更弱的恶龙，要么给你5金币。",
+            "金属幼龙": "你可以选择弃掉这张牌，并用你手牌中的一只善龙替换它。新牌的能力无论其强度如何都会触发。",
+            "毁灭红龙": "最强飞行队列的对手给你10金币。并从那个玩家的手牌中盲抽一张牌。",
+            "银龙先知": "每个飞行队列中至少有一只善龙的玩家抽一张牌。然后你查看牌堆顶部的三张牌，选择一张，并弃掉其他的。",
+            "提亚玛特": "龙神：提亚玛特同时算作黑龙、蓝龙、绿龙、红龙和白龙。只要你的飞行队列中有提亚玛特和一只善龙，你就不能赢得赌局。",
+            "白龙猎手": "每个比你更弱的对手给你3金币。",
+            "大法师": "你在这个赌局中之后打出的所有牌都触发它们的能力。",
+            "龙骑士": "在确定赌局胜者时，这张牌的强度等于你飞行队列中最弱的龙的强度，而不是这张牌上印刷的强度。",
+            "屠龙者": "为每个飞行队列弃掉一只更弱的龙。",
+            "德鲁伊": "最弱飞行队列赢得赌局，而不是最强飞行队列。",
+            "愚者": "为每个比你更强的飞行队列的对手抽一张牌。",
+            "幻术师": "你可以将这张牌与对手飞行队列中的一张凡人牌交换。如果你这样做了，你新得到的凡人牌无论其强度如何都会触发它的能力。",
+            "狗头人": "从你的手牌中弃掉任意数量的牌。然后抽取相同数量的牌。",
+            "商人王": "在这个赌局结束之前，任何玩家为了买新牌而要放入赌池的金币都会转给你，而不是放入赌池。",
+            "神父": "赌局胜者与他左边的玩家平分赌池。",
+            "公主": "你飞行队列中每只善龙的能力都会触发。",
+            "预言家": "你可以选择展示你手牌中的一只龙，并触发它的能力，就像是预言家触发了那个能力一样。",
+            "女帝": "每个飞行队列中同时有善龙和恶龙的对手给你5金币，并且你从那些玩家的手牌中各盲抽一张牌。",
+            "巫师": "展示牌堆顶部的三张牌。弃掉这张牌，并用其中一张展示的牌替换它。那张牌的能力无论如何都会触发。将另外两张展示的牌放入下注牌。",
+            "盗贼": "从赌池中拿走7金币。如果赌池中剩余7个或更少的金币，拿走所有金币并结束赌局。",
+            "龙祭司": "在这个赌局剩余的时间里，这张牌可以算作任何颜色来完成一个颜色飞行队列。"
+        };
+
+        let deck = [];
+        let drawHistory = [];
+
+        function initializeDeck() {
+            deck = [];
+            drawHistory = [];
+            for (let [dragon, strengths] of Object.entries(standardDragons)) {
+                for (let strength of strengths) {
+                    deck.push({name: dragon, strength: strength});
+                }
+            }
+
+            let specialCardNames = Object.keys(specialCards);
+            let selectedSpecialCards = specialCardNames.sort(() => 0.5 - Math.random()).slice(0, 10);
+            for (let cardName of selectedSpecialCards) {
+                deck.push({name: cardName, strength: specialCards[cardName]});
+            }
+
+            deck = deck.sort(() => 0.5 - Math.random());
+            
+            updateButtonStatus();
+            document.getElementById('cardDisplay').textContent = "牌组已重置，共80张牌。";
+            document.getElementById('cardDisplay').classList.remove('card-animation');
+            document.getElementById('historyDisplay').style.display = 'none';
+            document.getElementById('historyDisplay').innerHTML = '';
+        }
+
+        function drawCard() {
+            if (deck.length === 0) {
+                document.getElementById('cardDisplay').textContent = "卡组已经抽完了！";
+                updateButtonStatus();
+                return;
+            }
+
+            let card = deck.pop();
+            drawHistory.push(card);
+            let cardDisplay = document.getElementById('cardDisplay');
+            cardDisplay.innerHTML = `<strong>抽到的牌是: ${card.name} (强度: ${card.strength})</strong><br><br>能力: ${cardAbilities[card.name.split(' ')[0]]}`;
+            cardDisplay.classList.remove('card-animation');
+            void cardDisplay.offsetWidth; // 触发重绘
+            cardDisplay.classList.add('card-animation');
+            updateButtonStatus();
+            updateHistory();
+        }
+
+        function updateButtonStatus() {
+            document.getElementById('drawButton').textContent = `抽牌 (还剩 ${deck.length} 张)`;
+            document.getElementById('drawButton').disabled = deck.length === 0;
+        }
+
+        function updateHistory() {
+            let historyDisplay = document.getElementById('historyDisplay');
+            historyDisplay.innerHTML = '<h3>抽牌历史记录：</h3>';
+            for (let i = drawHistory.length - 1; i >= 0; i--) {
+                let card = drawHistory[i];
+                historyDisplay.innerHTML += `${drawHistory.length - i}. ${card.name} (强度: ${card.strength})<br>`;
+            }
+        }
+
+        function toggleHistory() {
+            let historyDisplay = document.getElementById('historyDisplay');
+            if (historyDisplay.style.display === 'none') {
+                historyDisplay.style.display = 'block';
+                updateHistory();
+            } else {
+                historyDisplay.style.display = 'none';
+            }
+        }
+
+        document.getElementById('drawButton').addEventListener('click', drawCard);
+        document.getElementById('resetButton').addEventListener('click', initializeDeck);
+        document.getElementById('historyButton').addEventListener('click', toggleHistory);
+
+        initializeDeck();
+    </script>
+</body>
+</html>
+
+
+
