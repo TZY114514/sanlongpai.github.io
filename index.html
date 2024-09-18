@@ -240,9 +240,9 @@
         function updateHistory() {
             let historyDisplay = document.getElementById('historyDisplay');
             historyDisplay.innerHTML = '<h3>抽牌历史记录：</h3>';
-            for (let i = drawHistory.length - 1; i >= 0; i--) {
+            for (let i = 0; i < drawHistory.length; i++) {
                 let card = drawHistory[i];
-                historyDisplay.innerHTML += `${drawHistory.length - i}. ${card.name} (强度: ${card.strength})<br>`;
+                historyDisplay.innerHTML += `${i + 1}. ${card.name} (强度: ${card.strength})<br>`;
             }
         }
 
